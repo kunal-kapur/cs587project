@@ -17,7 +17,7 @@ class BooksDataset:
             self.categories_list.append(len(df[column].unique()))
         
         self.categorical = torch.tensor(df.iloc[:, 1:5].values)
-        self.numerical = torch.tensor(df.iloc[:, 5].values)
+        self.numerical = torch.tensor(df.iloc[:, 5:].values)
 
         self.ratings = torch.tensor(ratings.values)
     

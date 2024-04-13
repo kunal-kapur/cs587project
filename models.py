@@ -23,9 +23,10 @@ class CrossNet(nn.Module):
         self.bias.data.zero_()
     
     def to(self, device):
-        self.alphas = self.alphas.to(device)
-        self.bias = self.bias.to(device)
+        self.alphas = torch.nn.Parameter(self.alphas.to(device))
+        self.bias = torch.nn.Parameter(self.bias.to(device))
         return super().to(device)
+    
     def forward(self, input, X):
         # Input shape: torch.Size([minibatch, input_dim])
 
@@ -80,13 +81,12 @@ class DCN(nn.Module):
         self.concat_layer = torch.nn.Sequential(*concat_layer)
 
     def to(self, device):
-
         for i in range(len(self.embedding_layers)):
             self.embedding_layers[i] = self.embedding_layers[i].to(device)
 
-        for i in range(len(self.cross_layers_layers)):
+        for i in range(len(self.cross_layers)):
             self.cross_layers[i] = self.cross_layers[i].to(device)
-        return super.to(device)
+        return super().to(device)
     
 
     def forward(self, categorical_input, numerical_input):
@@ -95,6 +95,7 @@ class DCN(nn.Module):
         ]
 
         embedded_categorical = torch.cat(embedded_categorical, dim=1)  # Concatenate along feature dimension
+
         combined_input = torch.cat([embedded_categorical, numerical_input], dim=1)
         cross_output = combined_input
 

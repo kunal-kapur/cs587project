@@ -1,2 +1,4 @@
 *__pycache__*
-data/*
+*csv*
+*.png*
+*.ipynb_checkpoints*

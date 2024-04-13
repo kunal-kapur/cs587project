@@ -48,17 +48,17 @@ class DCN(nn.Module):
     output_dim: int, size of the output layer
     embedding_dim: dimension size of the embedding, typically the size of the input dim
     """
-    def __init__(self, num_categorical_features, num_numerical_features, 
+    def __init__(self, categorical_features, num_numerical_features, 
                  embedding_dim, dcn_layer_len, layer_sizes, output_dim):
         
 
         super().__init__()
-        self.embedding_layer = nn.ModuleList([
-            nn.Embedding(num_categories, embedding_dim) for num_categories in num_categorical_features
+        self.embedding_layers = nn.ModuleList([
+            nn.Embedding(num_categories, embedding_dim) for num_categories in categorical_features
         ])
 
         # find sum of total embedding size
-        total_embedding_size = sum(num_categories * embedding_dim for num_categories in num_categorical_features)
+        total_embedding_size = sum(num_categories * embedding_dim for num_categories in categorical_features)
 
         # final input dimension
         input_dim = total_embedding_size + num_numerical_features
@@ -81,16 +81,23 @@ class DCN(nn.Module):
 
         self.concat_layer = torch.nn.Sequential(self.concat_layer)
 
+    def to(self, device):
+
+        for i in range(len(self.embedding_layers)):
+            self.embedding_layers[i] = self.embedding_layers[i].to(device)
+        return super.to(device)
+    
+
     def forward(self, categorical_input, numerical_input):
         embedded_categorical = [
-            embedding_layer(categorical_input[:, i]) for i, embedding_layer in enumerate(self.embedding_layer)
+            embedding_layer(categorical_input[:, i]) for i, embedding_layer in enumerate(self.embedding_layers)
         ]
 
         embedded_categorical = torch.cat(embedded_categorical, dim=1)  # Concatenate along feature dimension
         combined_input = torch.cat([embedded_categorical, numerical_input], dim=1)
 
-        cross_output = self.cross_layers(X)
-        mlp_output = self.mlp(X)
+        cross_output = self.cross_layers(combined_input)
+        mlp_output = self.mlp(combined_input)
         X = torch.concat(cross_output, mlp_output, dim=1)
         X = self.concat_layer(X)
         return X

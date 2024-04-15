@@ -117,6 +117,6 @@ if not os.path.exists(path=path):
     plt.savefig(f'{path}/plot.png')
 
 with open(f"{path}/results.txt", "w") as f:
-    f.write("EPOCHS," + ",".join(map(str, epoch_list)) + "\n")
-    f.write("Validation Loss," + ",".join(map(str, val_loss_list)) + "\n")
-    f.write("Training Loss," + ",".join(map(str, train_loss_list)) + "\n")
+    f.write("EPOCHS,Training Loss,Validation Loss\n")
+    for i in range(len(epoch_list)):
+        f.write(f"{epoch_list[i]},{train_loss_list[i]},{val_loss_list[i]}")

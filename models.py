@@ -51,16 +51,25 @@ class DCN(nn.Module):
     embedding_dim: dimension size of the embedding, typically the size of the input dim
     """
     def __init__(self, categorical_features, num_numerical_features, 
-                 embedding_dim, dcn_layer_len, layer_sizes, output_dim):
+                 embedding_dim, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim, embed_by_category=False):
         
 
         super().__init__()
-        self.embedding_layers = nn.ModuleList([
-            nn.Embedding(num_categories, embedding_dim) for num_categories in categorical_features
-        ])
+        self.embedding_layers = None
+        num_embeddings = 0
+        if not embed_by_category:
+            self.embedding_layers = nn.ModuleList([
+                nn.Embedding(num_categories, embedding_dim) for num_categories in categorical_features
+            ])
+            num_embeddings = len(categorical_features)  * embedding_dim
+        else:
+            self.embedding_layers = nn.ModuleList([
+                nn.Embedding(num_categories, round(math.sqrt(num_categories))) for num_categories in categorical_features
+            ])
+            num_embeddings = sum(round(math.sqrt(num_categories)) for num_categories in categorical_features)
 
         # final input dimension
-        input_dim = len(categorical_features)  * embedding_dim + num_numerical_features
+        input_dim = num_embeddings + num_numerical_features
 
         self.cross_layers = [CrossNet(input_dim=input_dim) for i in range(dcn_layer_len)]
 
@@ -71,14 +80,21 @@ class DCN(nn.Module):
             mlp.append(torch.nn.ReLU())
             prev_dim = layer_sizes[i]
 
-        mlp.pop() # Pop last ReLU layer?
+        #mlp.pop() # Pop last ReLU layer?
         self.mlp = torch.nn.Sequential(*mlp)
 
         # the cross layers have input dim and we add to last layer size
-        concat_layer = \
-        [torch.nn.Linear(in_features= input_dim + layer_sizes[-1], out_features=output_dim), torch.nn.Sigmoid()]
+        final_layer_dim = input_dim + layer_sizes[-1]
 
-        self.concat_layer = torch.nn.Sequential(*concat_layer)
+        prev_size = final_layer_dim
+        self.concat_layer = []
+        for layer_size in concat_layer_sizes:
+            self.concat_layer.append(torch.nn.Linear(prev_size, layer_size))
+            self.concat_layer.append(nn.ReLU())
+            prev_size = layer_size
+
+        self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
+        self.concat_layer = torch.nn.Sequential(*self.concat_layer)
 
     def to(self, device):
         for i in range(len(self.embedding_layers)):

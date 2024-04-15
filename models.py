@@ -50,23 +50,17 @@ class DCN(nn.Module):
     output_dim: int, size of the output layer
     embedding_dim: dimension size of the embedding, typically the size of the input dim
     """
-    def __init__(self, categorical_features, num_numerical_features, 
-                 embedding_dim, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim, embed_by_category=False):
+    def __init__(self, categorical_features, num_numerical_features, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim):
         
 
         super().__init__()
         self.embedding_layers = None
         num_embeddings = 0
-        if not embed_by_category:
-            self.embedding_layers = nn.ModuleList([
-                nn.Embedding(num_categories, embedding_dim) for num_categories in categorical_features
-            ])
-            num_embeddings = len(categorical_features)  * embedding_dim
-        else:
-            self.embedding_layers = nn.ModuleList([
-                nn.Embedding(num_categories, round(math.sqrt(num_categories))) for num_categories in categorical_features
-            ])
-            num_embeddings = sum(round(math.sqrt(num_categories)) for num_categories in categorical_features)
+
+        self.embedding_layers = nn.ModuleList([
+            nn.Embedding(num_categories, round(6 * (num_categories) ** (1/4))) for num_categories in categorical_features
+        ])
+        num_embeddings = sum(round(6 * (num_categories) ** (1/4)) for num_categories in categorical_features)
 
         # final input dimension
         input_dim = num_embeddings + num_numerical_features

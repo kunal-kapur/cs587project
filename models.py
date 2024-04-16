@@ -72,7 +72,9 @@ class DCN(nn.Module):
         for i in range(0, len(layer_sizes)):
             mlp.append(torch.nn.Linear(in_features=prev_dim, out_features=layer_sizes[i]))
             mlp.append(torch.nn.ReLU())
+            mlp.append(nn.BatchNorm1d(layer_sizes[i]))
             prev_dim = layer_sizes[i]
+            
 
         #mlp.pop() # Pop last ReLU layer?
         self.mlp = torch.nn.Sequential(*mlp)
@@ -84,10 +86,14 @@ class DCN(nn.Module):
         self.concat_layer = []
         for layer_size in concat_layer_sizes:
             self.concat_layer.append(torch.nn.Linear(prev_size, layer_size))
-            self.concat_layer.append(nn.ReLU())
+            # self.concat_layer.append(nn.ReLU())
+            # mlp.append(nn.BatchNorm1d(layer_size))
             prev_size = layer_size
 
+        #self.concat_layer.pop() #popping last layer
+
         self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
+        self.concat_layer.append(nn.Sigmoid()) # get logits
         self.concat_layer = torch.nn.Sequential(*self.concat_layer)
 
     def to(self, device):
@@ -117,5 +123,7 @@ class DCN(nn.Module):
         mlp_output = self.mlp(combined_input)
 
         X = torch.concat((cross_output, mlp_output), dim=1)
+
         X = self.concat_layer(X)
+
         return X

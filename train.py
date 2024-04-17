@@ -13,9 +13,12 @@ import os
 NUM_NUMERICAL_FEATURES = 2
 
 LR = 0.001
-BATCH_SIZE = 128
-NUM_EPOCHS = 5
-DEEP_LAYERS = 1
+BATCH_SIZE = 64
+NUM_EPOCHS = 10
+CROSS_LAYERS = 2
+DEEP_LAYERS = [300, 100]
+# DEEP_LAYERS = [300, 400, 300]
+CONCAT_LAYERS = [200, 100]
 
 
 # for no MLP
@@ -29,7 +32,7 @@ With single cross layer doing
 
 """
 
-torch.manual_seed(1)
+#torch.manual_seed(15)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -46,7 +49,7 @@ val_dataloader = DataLoader(val_dataset,
 category_list = books_data.get_category_list()
 
 model = DCN(categorical_features=category_list, num_numerical_features=NUM_NUMERICAL_FEATURES,
-            dcn_layer_len=DEEP_LAYERS, layer_sizes=[50, 100, 50], concat_layer_sizes=[25], output_dim=4).to(device=device)
+            dcn_layer_len=CROSS_LAYERS, layer_sizes=[400, 500, 400], concat_layer_sizes=CONCAT_LAYERS, output_dim=4).to(device=device)
 
 #loss_fn = nn.MSELoss(reduction='sum')
 loss_fn = nn.NLLLoss()
@@ -79,7 +82,7 @@ for epoch in tqdm(range(NUM_EPOCHS)):
         num_training_correct += torch.sum(torch.argmax(pred, dim=1) == rating)
         total += (cat_values.shape[0])
 
-    train_loss_list.append((total_train_loss).item())
+    train_loss_list.append((total_train_loss).item() / total)
     training_accuracy_list.append((num_training_correct / total).item())
     total = 0
     with torch.no_grad():
@@ -96,7 +99,7 @@ for epoch in tqdm(range(NUM_EPOCHS)):
             num_validation_correct += torch.sum(torch.argmax(pred, dim=1) == rating)
             total += (cat_values.shape[0])
 
-    val_loss_list.append((total_val_loss).item())
+    val_loss_list.append((total_val_loss).item() / total)
     validation_accuracy_list.append((num_validation_correct / total).item())
 
     print("train loss", train_loss_list[-1])
@@ -105,12 +108,16 @@ for epoch in tqdm(range(NUM_EPOCHS)):
     print("Validation accuracy", validation_accuracy_list[-1])
     #print(f"{num_correct}/{total}", num_correct/total)
 
+    # if len(train_loss_list) > 1 and train_loss_list[-1] == train_loss_list[-2]:
+    #     print("EARLY STOP")
+    #     break
+
 
 fig1, ax1 = plt.subplots()
 ax1.plot(epoch_list,train_loss_list, label='train loss')
 ax1.plot(epoch_list, val_loss_list, label='validation loss')
 # Add a title and labels
-ax1.set_title('Training curve')
+ax1.set_title(f'Training curve cross layers:{CROSS_LAYERS}')
 ax1.set_xlabel('epoch')
 ax1.set_ylabel('loss')
 # Show the plot
@@ -121,14 +128,14 @@ fig2, ax2 = plt.subplots()
 ax2.plot(epoch_list,training_accuracy_list, label='train accuracy')
 ax2.plot(epoch_list, validation_accuracy_list, label='validation accuracy')
 # Add a title and labels
-ax2.set_title('Training curve')
+ax2.set_title(f'Training curve, cross layers:{CROSS_LAYERS}')
 ax2.set_xlabel('epoch')
 ax2.set_ylabel('accuracy')
 # Show the plot
 ax2.legend()
 
 
-path = f'curve_plot_{DEEP_LAYERS}DeepLayers_{NUM_EPOCHS}epochs'
+path = f'curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR'
 
 if not os.path.exists(path=path):
     os.mkdir(path=path)
@@ -137,6 +144,6 @@ fig1.savefig(f'{path}/loss_plot.png')
 fig2.savefig(f'{path}/accuracy_plot.png')
 
 with open(f"{path}/results.txt", "w") as f:
-    f.write("EPOCHS,Training Loss,Validation Loss\n")
+    f.write("EPOCHS,Training Loss,Validation Loss,Training Accuracy, Validation Accuracy\n")
     for i in range(len(epoch_list)):
-        f.write(f"{epoch_list[i]},{train_loss_list[i]},{val_loss_list[i]}\n")
+        f.write(f"{epoch_list[i]},{train_loss_list[i]},{val_loss_list[i]}, {training_accuracy_list[i]},{validation_accuracy_list[i]}\n")

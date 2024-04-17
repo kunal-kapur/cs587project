@@ -86,11 +86,13 @@ class DCN(nn.Module):
         self.concat_layer = []
         for layer_size in concat_layer_sizes:
             self.concat_layer.append(torch.nn.Linear(prev_size, layer_size))
-            # self.concat_layer.append(nn.ReLU())
-            # mlp.append(nn.BatchNorm1d(layer_size))
+            self.concat_layer.append(nn.ReLU())
+            mlp.append(nn.BatchNorm1d(layer_size))
             prev_size = layer_size
 
         #self.concat_layer.pop() #popping last layer
+
+        #self.concat_layer.append(nn.ReLU())
 
         self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
         self.concat_layer.append(nn.Sigmoid()) # get logits

@@ -50,23 +50,17 @@ class DCN(nn.Module):
     output_dim: int, size of the output layer
     embedding_dim: dimension size of the embedding, typically the size of the input dim
     """
-    def __init__(self, categorical_features, num_numerical_features, 
-                 embedding_dim, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim, embed_by_category=False):
+    def __init__(self, categorical_features, num_numerical_features, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim):
         
 
         super().__init__()
         self.embedding_layers = None
         num_embeddings = 0
-        if not embed_by_category:
-            self.embedding_layers = nn.ModuleList([
-                nn.Embedding(num_categories, embedding_dim) for num_categories in categorical_features
-            ])
-            num_embeddings = len(categorical_features)  * embedding_dim
-        else:
-            self.embedding_layers = nn.ModuleList([
-                nn.Embedding(num_categories, round(math.sqrt(num_categories))) for num_categories in categorical_features
-            ])
-            num_embeddings = sum(round(math.sqrt(num_categories)) for num_categories in categorical_features)
+
+        self.embedding_layers = nn.ModuleList([
+            nn.Embedding(num_categories, round(6 * (num_categories) ** (1/4))) for num_categories in categorical_features
+        ])
+        num_embeddings = sum(round(6 * (num_categories) ** (1/4)) for num_categories in categorical_features)
 
         # final input dimension
         input_dim = num_embeddings + num_numerical_features
@@ -78,7 +72,9 @@ class DCN(nn.Module):
         for i in range(0, len(layer_sizes)):
             mlp.append(torch.nn.Linear(in_features=prev_dim, out_features=layer_sizes[i]))
             mlp.append(torch.nn.ReLU())
+            mlp.append(nn.BatchNorm1d(layer_sizes[i]))
             prev_dim = layer_sizes[i]
+            
 
         #mlp.pop() # Pop last ReLU layer?
         self.mlp = torch.nn.Sequential(*mlp)
@@ -91,9 +87,15 @@ class DCN(nn.Module):
         for layer_size in concat_layer_sizes:
             self.concat_layer.append(torch.nn.Linear(prev_size, layer_size))
             self.concat_layer.append(nn.ReLU())
+            mlp.append(nn.BatchNorm1d(layer_size))
             prev_size = layer_size
 
+        #self.concat_layer.pop() #popping last layer
+
+        #self.concat_layer.append(nn.ReLU())
+
         self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
+        self.concat_layer.append(nn.Sigmoid()) # get logits
         self.concat_layer = torch.nn.Sequential(*self.concat_layer)
 
     def to(self, device):
@@ -123,5 +125,7 @@ class DCN(nn.Module):
         mlp_output = self.mlp(combined_input)
 
         X = torch.concat((cross_output, mlp_output), dim=1)
+
         X = self.concat_layer(X)
+
         return X

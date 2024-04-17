@@ -38,7 +38,17 @@ class TestDCN(unittest.TestCase):
     def test_dcn_basic(self):
         torch.manual_seed(1)
 
-        model = DCN(categorical_features=[4,5], num_numerical_features=2, embedding_dim=3,
+        model = DCN(categorical_features=[4,5], num_numerical_features=2,
+                    dcn_layer_len=3, layer_sizes=[5,3], concat_layer_sizes=[5,2], output_dim=1)
+
+        cat_input = torch.tensor([[1,2,4,5,8,1]])
+        num_input = torch.tensor([[5,6]])
+        model(cat_input, num_input)
+
+    def test_dcn_basic_category(self):
+        torch.manual_seed(1)
+
+        model = DCN(categorical_features=[4,5], num_numerical_features=2,
                     dcn_layer_len=3, layer_sizes=[5,3], concat_layer_sizes=[5,2], output_dim=1)
 
         cat_input = torch.tensor([[1,2,4,5,8,1]])

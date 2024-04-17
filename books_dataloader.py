@@ -8,7 +8,7 @@ class BooksDataset:
 
     def __init__(self, path):
         df = pd.read_csv(path)
-        ratings = df[['Book-Rating']]
+        ratings = df[['Book-Rating']].map(lambda x: (((x + 3)//3) - 1))
         df = df.drop(['Book-Rating'], axis=1)
 
         self.categories_list = []
@@ -19,7 +19,9 @@ class BooksDataset:
         self.categorical = torch.tensor(df.iloc[:, 1:5].values)
         self.numerical = torch.tensor(df.iloc[:, 5:].values)
 
-        self.ratings = torch.tensor(ratings.values)
+        self.ratings = torch.tensor(ratings.values).squeeze()
+        # print(self.ratings.shape)
+        # self.ratings = torch.nn.functional.one_hot(self.ratings, num_classes=4)
     
     def __len__(self):
         return len(self.ratings)

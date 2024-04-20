@@ -3,3 +3,5 @@
 *.png*
 *.ipynb_checkpoints*
 curve_plot*
+book_results*
+movie_results*

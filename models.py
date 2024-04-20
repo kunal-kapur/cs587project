@@ -58,9 +58,9 @@ class DCN(nn.Module):
         num_embeddings = 0
 
         self.embedding_layers = nn.ModuleList([
-            nn.Embedding(num_categories, round(6 * (num_categories) ** (1/4))) for num_categories in categorical_features
+            nn.Embedding(num_categories, round((num_categories) ** (1/4))) for num_categories in categorical_features
         ])
-        num_embeddings = sum(round(6 * (num_categories) ** (1/4)) for num_categories in categorical_features)
+        num_embeddings = sum(round((num_categories) ** (1/4)) for num_categories in categorical_features)
 
         # final input dimension
         input_dim = num_embeddings + num_numerical_features
@@ -87,13 +87,12 @@ class DCN(nn.Module):
         for layer_size in concat_layer_sizes:
             self.concat_layer.append(torch.nn.Linear(prev_size, layer_size))
             self.concat_layer.append(nn.ReLU())
-            mlp.append(nn.BatchNorm1d(layer_size))
             prev_size = layer_size
 
         #self.concat_layer.pop() #popping last layer
 
         #self.concat_layer.append(nn.ReLU())
-
+        self.concat_layer.append(nn.BatchNorm1d(prev_size))
         self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
         self.concat_layer.append(nn.Sigmoid()) # get logits
         self.concat_layer = torch.nn.Sequential(*self.concat_layer)
@@ -108,6 +107,7 @@ class DCN(nn.Module):
     
 
     def forward(self, categorical_input, numerical_input):
+
         embedded_categorical = [
             embedding_layer(categorical_input[:, i]) for i, embedding_layer in enumerate(self.embedding_layers)
         ]

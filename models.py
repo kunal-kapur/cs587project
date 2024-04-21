@@ -89,9 +89,9 @@ class DCN(nn.Module):
         num_embeddings = 0
 
         self.embedding_layers = nn.ModuleList([
-            nn.Embedding(num_categories, round((num_categories) ** (1/20))) for num_categories in categorical_features
+            nn.Embedding(num_categories, round(6 * (num_categories) ** (1/4))) for num_categories in categorical_features
         ])
-        num_embeddings = sum(round((num_categories) ** (1/20)) for num_categories in categorical_features)
+        num_embeddings = sum(round(6 * (num_categories) ** (1/4)) for num_categories in categorical_features)
 
         # final input dimension
         input_dim = num_embeddings + num_numerical_features

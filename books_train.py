@@ -16,8 +16,8 @@ NUM_NUMERICAL_FEATURES = 0
 LR = 0.00001
 BATCH_SIZE = 256
 NUM_EPOCHS = 20
-CROSS_LAYERS = 1
-DEEP_LAYERS = [100, 100]
+CROSS_LAYERS = 0
+DEEP_LAYERS = [300, 500, 300]
 # DEEP_LAYERS = [300, 400, 300]
 CONCAT_LAYERS = []
 OUTPUT_DIM = 4
@@ -37,7 +37,7 @@ With single cross layer doing
 
 """
 
-#torch.manual_seed(1)
+torch.manual_seed(1)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

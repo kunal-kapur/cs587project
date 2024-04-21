@@ -41,6 +41,37 @@ class CrossNet(nn.Module):
 
         return val + bias
 
+class CrossNetV2(nn.Module):
+    R"""
+    Cross Net layer
+    """
+    def __init__(self, input_dim):
+        super().__init__()
+
+        self.alphas = nn.Parameter(torch.Tensor(input_dim, input_dim))
+        self.bias = torch.nn.Parameter(torch.Tensor(input_dim))
+
+        # Kaiming initialization
+        stdv = 1.0/math.sqrt(input_dim)
+        self.alphas.data.uniform_(-stdv, stdv)
+        self.alphas = self.alphas
+        self.bias.data.zero_()
+    
+    def to(self, device):
+        self.alphas = torch.nn.Parameter(self.alphas.to(device))
+        self.bias = torch.nn.Parameter(self.bias.to(device))
+        return super().to(device)
+    
+    def forward(self, input, X):
+        # Input shape: torch.Size([minibatch, input_dim])
+
+        # X = X.unsqueeze(2)
+        # input = input.unsqueeze(2)
+
+        return input * (torch.matmul(X, self.alphas.t()) + self.bias) + X
+
+        #return input.unsqueeze * ((torch.matmul(self.alphas, X.unsqueeze(-1)) + self.bias.unsqueeze).squeeze(-1)) + X
+
 
 class DCN(nn.Module):
     R"""
@@ -50,7 +81,7 @@ class DCN(nn.Module):
     output_dim: int, size of the output layer
     embedding_dim: dimension size of the embedding, typically the size of the input dim
     """
-    def __init__(self, categorical_features, num_numerical_features, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim):
+    def __init__(self, categorical_features, num_numerical_features, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim, cross_net_V2=False):
         
 
         super().__init__()
@@ -58,14 +89,19 @@ class DCN(nn.Module):
         num_embeddings = 0
 
         self.embedding_layers = nn.ModuleList([
-            nn.Embedding(num_categories, round((num_categories) ** (1/4))) for num_categories in categorical_features
+            nn.Embedding(num_categories, round((num_categories) ** (1/20))) for num_categories in categorical_features
         ])
-        num_embeddings = sum(round((num_categories) ** (1/4)) for num_categories in categorical_features)
+        num_embeddings = sum(round((num_categories) ** (1/20)) for num_categories in categorical_features)
 
         # final input dimension
         input_dim = num_embeddings + num_numerical_features
 
-        self.cross_layers = [CrossNet(input_dim=input_dim) for i in range(dcn_layer_len)]
+        self.cross_layers = None
+
+        if not cross_net_V2:
+            self.cross_layers = [CrossNet(input_dim=input_dim) for i in range(dcn_layer_len)]
+        else:
+            self.cross_layers = [CrossNetV2(input_dim=input_dim) for i in range(dcn_layer_len)]
 
         prev_dim = input_dim
         mlp = []
@@ -89,9 +125,7 @@ class DCN(nn.Module):
             self.concat_layer.append(nn.ReLU())
             prev_size = layer_size
 
-        #self.concat_layer.pop() #popping last layer
 
-        #self.concat_layer.append(nn.ReLU())
         self.concat_layer.append(nn.BatchNorm1d(prev_size))
         self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
         self.concat_layer.append(nn.Sigmoid()) # get logits

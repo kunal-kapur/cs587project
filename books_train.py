@@ -11,16 +11,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-NUM_NUMERICAL_FEATURES = 2
+NUM_NUMERICAL_FEATURES = 0
 
 LR = 0.00001
 BATCH_SIZE = 256
-NUM_EPOCHS = 10
-CROSS_LAYERS = 0
+NUM_EPOCHS = 20
+CROSS_LAYERS = 1
 DEEP_LAYERS = [100, 100]
 # DEEP_LAYERS = [300, 400, 300]
 CONCAT_LAYERS = []
 OUTPUT_DIM = 4
+
+LAYER_OPTIONS = {"DCN_V1": False, "DCN_V2":True}
+CROSS_LAYER_CHOICE = "DCN_V2"
 
 
 # for no MLP
@@ -34,7 +37,7 @@ With single cross layer doing
 
 """
 
-torch.manual_seed(10)
+#torch.manual_seed(1)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -51,7 +54,8 @@ val_dataloader = DataLoader(val_dataset,
 category_list = books_data.get_category_list()
 
 model = DCN(categorical_features=category_list, num_numerical_features=NUM_NUMERICAL_FEATURES,
-            dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM).to(device=device)
+            dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM,
+            cross_net_V2=LAYER_OPTIONS[CROSS_LAYER_CHOICE]).to(device=device)
 
 #loss_fn = nn.MSELoss(reduction='sum')
 loss_fn = nn.NLLLoss()
@@ -119,7 +123,7 @@ fig1, ax1 = plt.subplots()
 ax1.plot(epoch_list,train_loss_list, label='train loss')
 ax1.plot(epoch_list, val_loss_list, label='validation loss')
 # Add a title and labels
-ax1.set_title(f'Training curve cross layers:{CROSS_LAYERS}')
+ax1.set_title(f'Training curve for loss, {CROSS_LAYER_CHOICE}, cross layers:{CROSS_LAYERS}')
 ax1.set_xlabel('epoch')
 ax1.set_ylabel('loss')
 # Show the plot
@@ -130,7 +134,7 @@ fig2, ax2 = plt.subplots()
 ax2.plot(epoch_list,training_accuracy_list, label='train accuracy')
 ax2.plot(epoch_list, validation_accuracy_list, label='validation accuracy')
 # Add a title and labels
-ax2.set_title(f'Training curve, cross layers:{CROSS_LAYERS}')
+ax2.set_title(f'Training curve for accuracy, {CROSS_LAYER_CHOICE}, cross layers:{CROSS_LAYERS}')
 ax2.set_xlabel('epoch')
 ax2.set_ylabel('accuracy')
 # Show the plot
@@ -138,8 +142,11 @@ ax2.legend()
 
 if not os.path.exists("books_results"):
     os.mkdir("books_results")
+    os.mkdir("books_results/DCN_V1")
+    os.mkdir("books_results/DCN_V1")
+    
 
-path = f'books_results/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR'
+path = f'books_results/{CROSS_LAYER_CHOICE}/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR'
 
 if not os.path.exists(path=path):
     os.mkdir(path=path)
@@ -148,6 +155,6 @@ fig1.savefig(f'{path}/loss_plot.png')
 fig2.savefig(f'{path}/accuracy_plot.png')
 
 with open(f"{path}/results.csv", "w") as f:
-    f.write("EPOCHS,Training Loss,Validation Loss,Training Accuracy, Validation Accuracy\n")
+    f.write("EPOCHS,Training Loss,Validation Loss,Training Accuracy,Validation Accuracy\n")
     for i in range(len(epoch_list)):
         f.write(f"{epoch_list[i]},{train_loss_list[i]},{val_loss_list[i]}, {training_accuracy_list[i]},{validation_accuracy_list[i]}\n")

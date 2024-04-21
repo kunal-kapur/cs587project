@@ -13,11 +13,11 @@ class BooksDataset:
 
         self.categories_list = []
         # could also do max. Encoded from values 0-len
-        for column in df.columns[1:5]:
+        for column in df.columns[1:7]:
             self.categories_list.append(len(df[column].unique()))
         
-        self.categorical = torch.tensor(df.iloc[:, 1:5].values)
-        self.numerical = torch.tensor(df.iloc[:, 5:].values)
+        self.categorical = torch.tensor(df.iloc[:, 1:7].values)
+        self.numerical = torch.tensor(df.iloc[:, 7:].values)
 
         self.ratings = torch.tensor(ratings.values).squeeze()
         # print(self.ratings.shape)
@@ -33,7 +33,7 @@ class BooksDataset:
 
     def __getitem__(self, idx):
 
-        return self.categorical[idx], self.numerical[idx], self.ratings[idx]
+        return self.categorical[idx], self.numerical[idx].float(), self.ratings[idx]
     
 
 class MoviesDataSet:

@@ -16,17 +16,20 @@ class CrossNet(nn.Module):
         self.bias = torch.nn.Parameter(torch.Tensor(input_dim))
 
         # Kaiming initialization
-        stdv = 1.0/math.sqrt(input_dim)
-        self.alphas.data.uniform_(-stdv, stdv)
-        self.alphas = self.alphas
+        # stdv = 1.0/math.sqrt(input_dim)
+        # self.alphas.data.uniform_(-stdv, stdv)
+        # self.alphas = self.alphas
+        torch.nn.init.kaiming_uniform_(self.alphas,
+                               a=0, mode="fan_in",
+                               nonlinearity="relu")
 
         self.bias.data.zero_()
-    
+
     def to(self, device):
         self.alphas = torch.nn.Parameter(self.alphas.to(device))
         self.bias = torch.nn.Parameter(self.bias.to(device))
         return super().to(device)
-    
+
     def forward(self, input, X):
         # Input shape: torch.Size([minibatch, input_dim])
 
@@ -56,12 +59,12 @@ class CrossNetV2(nn.Module):
         self.alphas.data.uniform_(-stdv, stdv)
         self.alphas = self.alphas
         self.bias.data.zero_()
-    
+
     def to(self, device):
         self.alphas = torch.nn.Parameter(self.alphas.to(device))
         self.bias = torch.nn.Parameter(self.bias.to(device))
         return super().to(device)
-    
+
     def forward(self, input, X):
         # Input shape: torch.Size([minibatch, input_dim])
 
@@ -81,17 +84,18 @@ class DCN(nn.Module):
     output_dim: int, size of the output layer
     embedding_dim: dimension size of the embedding, typically the size of the input dim
     """
-    def __init__(self, categorical_features, num_numerical_features, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim, cross_net_V2=False):
-        
+    def __init__(self, categorical_features, num_numerical_features, dcn_layer_len, layer_sizes, concat_layer_sizes, output_dim, cross_net_V2=False, stacked=False):
+
 
         super().__init__()
+        self.stacked = stacked
         self.embedding_layers = None
         num_embeddings = 0
 
         self.embedding_layers = nn.ModuleList([
-            nn.Embedding(num_categories, round((num_categories) ** (1/20))) for num_categories in categorical_features
+            nn.Embedding(num_categories, round(6*(num_categories) ** (1/4))) for num_categories in categorical_features
         ])
-        num_embeddings = sum(round((num_categories) ** (1/20)) for num_categories in categorical_features)
+        num_embeddings = sum(round(6*(num_categories) ** (1/4)) for num_categories in categorical_features)
 
         # final input dimension
         input_dim = num_embeddings + num_numerical_features
@@ -110,13 +114,16 @@ class DCN(nn.Module):
             mlp.append(torch.nn.ReLU())
             mlp.append(nn.BatchNorm1d(layer_sizes[i]))
             prev_dim = layer_sizes[i]
-            
+
 
         #mlp.pop() # Pop last ReLU layer?
+        mlp.pop()
+        mlp.pop()
+        # mlp.append(nn.BatchNorm1d(layer_sizes[-1]))
         self.mlp = torch.nn.Sequential(*mlp)
 
         # the cross layers have input dim and we add to last layer size
-        final_layer_dim = input_dim + layer_sizes[-1]
+        final_layer_dim = input_dim + layer_sizes[-1] if not stacked else layer_sizes[-1]
 
         prev_size = final_layer_dim
         self.concat_layer = []
@@ -138,7 +145,7 @@ class DCN(nn.Module):
         for i in range(len(self.cross_layers)):
             self.cross_layers[i] = self.cross_layers[i].to(device)
         return super().to(device)
-    
+
 
     def forward(self, categorical_input, numerical_input):
 
@@ -152,14 +159,25 @@ class DCN(nn.Module):
         cross_output = combined_input
 
 
-
         for cross_layer in self.cross_layers:
             cross_output = cross_layer(combined_input, cross_output)
-
-        mlp_output = self.mlp(combined_input)
-
-        X = torch.concat((cross_output, mlp_output), dim=1)
+        if self.stacked:
+            # stacked arch
+            X = self.mlp(cross_output)
+        else:
+            # parallel arch
+            mlp_output = self.mlp(combined_input)
+            X = torch.concat((cross_output, mlp_output), dim=1)
 
         X = self.concat_layer(X)
 
         return X
+    def get_regularization_term(self, lmbd):
+        total = 0
+        for cross_layer in self.cross_layers:
+            # sum the L2 norms of all the cross weights
+            total += torch.norm(cross_layer.alphas, p=2)
+        for mlp_layer in self.mlp:
+            if isinstance(mlp_layer, nn.Linear):
+                total += torch.norm(mlp_layer.weight, p=2)
+        return lmbd * total

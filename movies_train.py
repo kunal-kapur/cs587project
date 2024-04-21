@@ -8,24 +8,25 @@ from models import DCN
 from torch import nn
 from torch.optim import Adam
 import matplotlib.pyplot as plt
-import seaborn as sns
+# import seaborn as sns
 import os
 
 
 NUM_NUMERICAL_FEATURES = 0
 
-LR = 0.0001
-BATCH_SIZE = 32
-NUM_EPOCHS = 12
-CROSS_LAYERS = 1
-DEEP_LAYERS = [200, 500, 200]
+LR = 0.00001
+BATCH_SIZE = 64
+NUM_EPOCHS = 15
+CROSS_LAYERS = 3
+DEEP_LAYERS = [100, 300, 300, 100]
 CONCAT_LAYERS = []
 OUTPUT_DIM = 5
+LMBD = 0.0005
 
 
 # for no MLP
 
-torch.manual_seed(15)
+torch.manual_seed(42)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -42,11 +43,12 @@ val_dataloader = DataLoader(val_dataset,
 category_list = movies_data.get_category_list()
 
 model = DCN(categorical_features=category_list, num_numerical_features=NUM_NUMERICAL_FEATURES,
-            dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM).to(device=device)
+            dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM,
+            stacked=True).to(device=device)
 
 #loss_fn = nn.MSELoss(reduction='sum')
 loss_fn = nn.NLLLoss()
-#loss_fn = nn.CrossEntropyLoss()
+# loss_fn = nn.CrossEntropyLoss()
 
 opt = Adam(params=model.parameters(), lr=LR)
 
@@ -67,7 +69,7 @@ for epoch in tqdm(range(NUM_EPOCHS)):
 
         pred = model.forward(categorical_input=cat_values, numerical_input=numerical_values)
 
-        loss = loss_fn(pred, rating)
+        loss = loss_fn(pred, rating) + model.get_regularization_term(LMBD)
         opt.zero_grad()
         loss.backward()
         #torch.nn.utils.clip_grad_value_(model.parameters(), 0.5)

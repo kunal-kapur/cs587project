@@ -17,13 +17,13 @@ LR = 0.00001
 BATCH_SIZE = 256
 NUM_EPOCHS = 20
 CROSS_LAYERS = 0
-DEEP_LAYERS = [300, 500, 300]
-# DEEP_LAYERS = [300, 400, 300]
+#DEEP_LAYERS = []
+DEEP_LAYERS = [300, 300]
 CONCAT_LAYERS = []
 OUTPUT_DIM = 4
 
 LAYER_OPTIONS = {"DCN_V1": False, "DCN_V2":True}
-CROSS_LAYER_CHOICE = "DCN_V2"
+CROSS_LAYER_CHOICE = "DCN_V1"
 
 
 # for no MLP
@@ -37,7 +37,7 @@ With single cross layer doing
 
 """
 
-torch.manual_seed(1)
+torch.manual_seed(10)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

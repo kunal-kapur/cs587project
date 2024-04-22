@@ -116,15 +116,15 @@ class DCN(nn.Module):
         self.mlp = torch.nn.Sequential(*mlp)
 
         # the cross layers have input dim and we add to last layer size
-        final_layer_dim = input_dim + layer_sizes[-1]
+        mlp_out_dim = input_dim
+        cross_output_dim = 0
+        if len(layer_sizes) > 0:
+            mlp_out_dim = layer_sizes[-1]
+        if dcn_layer_len > 0:
+            cross_output_dim = input_dim # cross output is always input size
 
-        prev_size = final_layer_dim
+        prev_size = mlp_out_dim + cross_output_dim
         self.concat_layer = []
-        for layer_size in concat_layer_sizes:
-            self.concat_layer.append(torch.nn.Linear(prev_size, layer_size))
-            self.concat_layer.append(nn.ReLU())
-            prev_size = layer_size
-
 
         self.concat_layer.append(nn.BatchNorm1d(prev_size))
         self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
@@ -149,17 +149,16 @@ class DCN(nn.Module):
         embedded_categorical = torch.cat(embedded_categorical, dim=1)  # Concatenate along feature dimension
 
         combined_input = torch.cat([embedded_categorical, numerical_input], dim=1)
-        cross_output = combined_input
 
-
-
-        for cross_layer in self.cross_layers:
-            cross_output = cross_layer(combined_input, cross_output)
-
+        X = None
         mlp_output = self.mlp(combined_input)
-
-        X = torch.concat((cross_output, mlp_output), dim=1)
-
+        # Set of conditional statements in the case there is no cross layers
+        if len(self.cross_layers) > 0:
+            cross_output = combined_input
+            for cross_layer in self.cross_layers:
+                cross_output = cross_layer(combined_input, cross_output)
+            X = torch.concat((cross_output, mlp_output), dim=1)
+        else:
+            X = mlp_output
         X = self.concat_layer(X)
-
         return X

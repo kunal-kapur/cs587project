@@ -19,12 +19,12 @@ flags.DEFINE_integer("batch", 512, "Batch size")
 flags.DEFINE_integer("epochs", 15, "Number of epochs to run")
 flags.DEFINE_float("lr", 0.00001, "Learning Rate")
 flags.DEFINE_list("deep_layers", [500,800,500], "Sizes of the deep (mlp) layers")
-
+flags.DEFINE_bool("stacked", False, "Use a stacked or parallel architecture")
+flags.DEFINE_float("reg", 0, "Regularization term")
+flags.DEFINE_enum("data", "avazu", ['avazu', 'books'], "Dataset to pick")
 
 
 NUM_NUMERICAL_FEATURES = 0
-
-
 
 # for no MLP
 def main(argv):
@@ -34,7 +34,13 @@ def main(argv):
     CROSS_LAYERS = FLAGS.cross_layers
     DEEP_LAYERS = FLAGS.deep_layers
     CONCAT_LAYERS = []
+    STACKED = FLAGS.stacked
+    LMBD = FLAGS.reg
     OUTPUT_DIM = 2
+    if (FLAGS.data == 'avazu'):
+        PATH = "data/avazu_dataset.csv"
+    else:
+        exit()
 
     torch.manual_seed(15)
 
@@ -53,7 +59,8 @@ def main(argv):
     category_list = avazu_data.get_category_list()
 
     model = DCN(categorical_features=category_list, num_numerical_features=NUM_NUMERICAL_FEATURES,
-                dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM).to(device=device)
+                dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM,
+                stacked=STACKED).to(device=device)
 
     #loss_fn = nn.MSELoss(reduction='sum')
     loss_fn = nn.NLLLoss()
@@ -77,7 +84,7 @@ def main(argv):
             rating = rating.type(torch.int64).to(device)
 
             pred = model.forward(categorical_input=cat_values, numerical_input=numerical_values)
-            loss = loss_fn(pred, rating)
+            loss = loss_fn(pred, rating) + model.get_regularization_term(lmbd=LMBD)
             opt.zero_grad()
             loss.backward()
             #torch.nn.utils.clip_grad_value_(model.parameters(), 0.5)

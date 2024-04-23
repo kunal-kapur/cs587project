@@ -1,38 +1,37 @@
 import torch.utils
 from torch.utils.data import DataLoader
 import torch.utils.data
-from dataloader import MoviesDataSet
+from dataloader import AvazuDataSet
 from tqdm import tqdm
 import torch
 from models import DCN
 from torch import nn
 from torch.optim import Adam
 import matplotlib.pyplot as plt
-# import seaborn as sns
+import seaborn as sns
 import os
 
 
 NUM_NUMERICAL_FEATURES = 0
 
 LR = 0.00001
-BATCH_SIZE = 64
+BATCH_SIZE = 512
 NUM_EPOCHS = 15
-CROSS_LAYERS = 3
-DEEP_LAYERS = [100, 300, 300, 100]
+CROSS_LAYERS = 0
+DEEP_LAYERS = [500, 800, 500]
 CONCAT_LAYERS = []
-OUTPUT_DIM = 5
-LMBD = 0.0005
+OUTPUT_DIM = 2
 
 
 # for no MLP
 
-torch.manual_seed(42)
+torch.manual_seed(15)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-movies_data = MoviesDataSet(path="data/movies_dataset.csv")
+avazu_data = AvazuDataSet(path="data/avazu_dataset.csv")
 
-train_dataset, val_dataset= torch.utils.data.random_split(movies_data, [0.8, 0.2])
+train_dataset, val_dataset= torch.utils.data.random_split(avazu_data, [0.8, 0.2])
 
 train_dataloader = DataLoader(train_dataset,
                          batch_size=BATCH_SIZE, shuffle=True)
@@ -40,15 +39,14 @@ train_dataloader = DataLoader(train_dataset,
 val_dataloader = DataLoader(val_dataset,
                          batch_size=BATCH_SIZE, shuffle=True)
 
-category_list = movies_data.get_category_list()
+category_list = avazu_data.get_category_list()
 
 model = DCN(categorical_features=category_list, num_numerical_features=NUM_NUMERICAL_FEATURES,
-            dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM,
-            stacked=True).to(device=device)
+            dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM).to(device=device)
 
 #loss_fn = nn.MSELoss(reduction='sum')
 loss_fn = nn.NLLLoss()
-# loss_fn = nn.CrossEntropyLoss()
+#loss_fn = nn.CrossEntropyLoss()
 
 opt = Adam(params=model.parameters(), lr=LR)
 
@@ -61,15 +59,14 @@ for epoch in tqdm(range(NUM_EPOCHS)):
     total_val_loss = 0
     num_training_correct, num_validation_correct, total = 0, 0, 0
     model.train() # set model to training mode
-    for cat_values, numerical_values, rating in tqdm(train_dataloader):
+    for cat_values, numerical_values, rating in (train_dataloader):
 
         cat_values = cat_values.to(device)
         numerical_values = numerical_values.to(device)
-        rating = rating.to(device)
+        rating = rating.type(torch.int64).to(device)
 
         pred = model.forward(categorical_input=cat_values, numerical_input=numerical_values)
-
-        loss = loss_fn(pred, rating) + model.get_regularization_term(LMBD)
+        loss = loss_fn(pred, rating)
         opt.zero_grad()
         loss.backward()
         #torch.nn.utils.clip_grad_value_(model.parameters(), 0.5)
@@ -84,10 +81,10 @@ for epoch in tqdm(range(NUM_EPOCHS)):
     total = 0
     with torch.no_grad():
         model.eval() # set model to evaluation mode
-        for cat_values, numerical_values, rating in tqdm(val_dataloader):
+        for cat_values, numerical_values, rating in (val_dataloader):
             cat_values = cat_values.to(device)
             numerical_values = numerical_values.to(device)
-            rating = rating.to(device)
+            rating = rating.type(torch.int64).to(device)
             pred = model.forward(categorical_input=cat_values, numerical_input=numerical_values)
             loss = loss_fn(pred, rating)
             total_val_loss += loss
@@ -111,7 +108,7 @@ fig1, ax1 = plt.subplots()
 ax1.plot(epoch_list,train_loss_list, label='train loss')
 ax1.plot(epoch_list, val_loss_list, label='validation loss')
 # Add a title and labels
-ax1.set_title(f'Movies Training curve, cross layers:{CROSS_LAYERS}')
+ax1.set_title(f'Avazu Training curve, cross layers:{CROSS_LAYERS}')
 ax1.set_xlabel('epoch')
 ax1.set_ylabel('loss')
 # Show the plot
@@ -122,17 +119,17 @@ fig2, ax2 = plt.subplots()
 ax2.plot(epoch_list,training_accuracy_list, label='train accuracy')
 ax2.plot(epoch_list, validation_accuracy_list, label='validation accuracy')
 # Add a title and labels
-ax2.set_title(f'Movies Training curve, cross layers:{CROSS_LAYERS}')
+ax2.set_title(f'Avazu Training curve, cross layers:{CROSS_LAYERS}')
 ax2.set_xlabel('epoch')
 ax2.set_ylabel('accuracy')
 # Show the plot
 ax2.legend()
 
 
-if not os.path.exists("movies_results"):
-    os.mkdir("movies_results")
+if not os.path.exists("avazu_results"):
+    os.mkdir("avazu_results")
 
-path = f'movies_results/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR'
+path = f'avazu_results/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR'
 
 if not os.path.exists(path=path):
     os.mkdir(path=path)

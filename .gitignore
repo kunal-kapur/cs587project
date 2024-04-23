@@ -1,7 +1,8 @@
 *__pycache__*
-*csv*
+*.csv
 *.png*
 *.ipynb_checkpoints*
 curve_plot*
 book_results*
 movie_results*
+slurm*

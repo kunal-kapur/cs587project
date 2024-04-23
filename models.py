@@ -93,9 +93,9 @@ class DCN(nn.Module):
         num_embeddings = 0
 
         self.embedding_layers = nn.ModuleList([
-            nn.Embedding(num_categories, round(6*(num_categories) ** (1/4))) for num_categories in categorical_features
+            nn.Embedding(num_categories, round(6 * (num_categories) ** (1/4))) for num_categories in categorical_features
         ])
-        num_embeddings = sum(round(6*(num_categories) ** (1/4)) for num_categories in categorical_features)
+        num_embeddings = sum(round(6 * (num_categories) ** (1/4)) for num_categories in categorical_features)
 
         # final input dimension
         input_dim = num_embeddings + num_numerical_features
@@ -123,15 +123,16 @@ class DCN(nn.Module):
         self.mlp = torch.nn.Sequential(*mlp)
 
         # the cross layers have input dim and we add to last layer size
+        mlp_out_dim = input_dim
+        cross_output_dim = 0
+        if len(layer_sizes) > 0:
+            mlp_out_dim = layer_sizes[-1]
+        if dcn_layer_len > 0:
+            cross_output_dim = input_dim # cross output is always input size
         final_layer_dim = input_dim + layer_sizes[-1] if not stacked else layer_sizes[-1]
 
-        prev_size = final_layer_dim
+        prev_size = mlp_out_dim + cross_output_dim
         self.concat_layer = []
-        for layer_size in concat_layer_sizes:
-            self.concat_layer.append(torch.nn.Linear(prev_size, layer_size))
-            self.concat_layer.append(nn.ReLU())
-            prev_size = layer_size
-
 
         self.concat_layer.append(nn.BatchNorm1d(prev_size))
         self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
@@ -158,19 +159,21 @@ class DCN(nn.Module):
         combined_input = torch.cat([embedded_categorical, numerical_input], dim=1)
         cross_output = combined_input
 
-
-        for cross_layer in self.cross_layers:
-            cross_output = cross_layer(combined_input, cross_output)
         if self.stacked:
             # stacked arch
             X = self.mlp(cross_output)
         else:
             # parallel arch
             mlp_output = self.mlp(combined_input)
-            X = torch.concat((cross_output, mlp_output), dim=1)
+
+        for cross_layer in self.cross_layers:
+            cross_output = cross_layer(combined_input, cross_output)
+
+        mlp_output = self.mlp(combined_input)
+
+        X = torch.concat((cross_output, mlp_output), dim=1)
 
         X = self.concat_layer(X)
-
         return X
     def get_regularization_term(self, lmbd):
         total = 0

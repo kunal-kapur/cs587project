@@ -1,0 +1,10 @@
+#!/bin/bash
+# FILENAME: job.sub
+#SBATCH -A gpu
+#SBATCH --nodes=2
+#SBATCH --gpus-per-node=1
+#SBATCH --time=2:00:00
+
+source activate cs587
+
+python avazu_train.py

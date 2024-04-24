@@ -147,7 +147,7 @@ def main(argv):
     if not os.path.exists("avazu_results"):
         os.mkdir("avazu_results")
 
-    path = f'avazu_results/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR'
+    path = f'avazu_results/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR{LMBD}lambda{STACKED}stacked'
 
     if not os.path.exists(path=path):
         os.mkdir(path=path)

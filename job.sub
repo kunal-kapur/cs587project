@@ -9,12 +9,9 @@ module load anaconda/2020.11-py38
 
 source activate cs587
 
-python avazu_train.py -cross_layers 3
-python avazu_train.py -cross_layers 4
+python avazu_train.py -cross_layers 1 -stacked True
+python avazu_train.py -cross_layers 2 -stacked True
 
-python avazu_train.py -cross_layers 1 -lr 0.0001
-python avazu_train.py -cross_layers 1 -lr 0.000001
-
+python avazu_train.py -cross_layers 1 -reg 0.1
+python avazu_train.py -cross_layers 1 -reg 0.01
 python avazu_train.py -cross_layers 1 -reg 0.001
-python avazu_train.py -cross_layers 1 -reg 0.0001
-python avazu_train.py -cross_layers 1 -reg 0.00001

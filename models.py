@@ -175,7 +175,7 @@ class DCN(nn.Module):
 
         X = self.concat_layer(X)
         return X
-    def get_regularization_term(self, lmbd):
+    def get_regularization_term(self, lmbd=0):
         total = 0
         for cross_layer in self.cross_layers:
             # sum the L2 norms of all the cross weights

@@ -134,8 +134,8 @@ class DCN(nn.Module):
         prev_size = mlp_out_dim + cross_output_dim
         self.concat_layer = []
 
-        self.concat_layer.append(nn.BatchNorm1d(prev_size))
-        self.concat_layer.append(nn.Linear(in_features=prev_size, out_features=output_dim))
+        self.concat_layer.append(nn.BatchNorm1d(final_layer_dim))
+        self.concat_layer.append(nn.Linear(in_features=final_layer_dim, out_features=output_dim))
         self.concat_layer.append(nn.Sigmoid()) # get logits
         self.concat_layer = torch.nn.Sequential(*self.concat_layer)
 

@@ -22,6 +22,7 @@ flags.DEFINE_list("deep_layers", [500,800,500], "Sizes of the deep (mlp) layers"
 flags.DEFINE_bool("stacked", False, "Use a stacked or parallel architecture")
 flags.DEFINE_float("reg", 0, "Regularization term")
 flags.DEFINE_enum("data", "avazu", ['avazu', 'books'], "Dataset to pick")
+flags.DEFINE_bool("v2", False, "If we use DCN version 2 or version 1")
 
 
 NUM_NUMERICAL_FEATURES = 0
@@ -32,7 +33,7 @@ def main(argv):
     BATCH_SIZE = FLAGS.batch
     NUM_EPOCHS = FLAGS.epochs
     CROSS_LAYERS = FLAGS.cross_layers
-    DEEP_LAYERS = FLAGS.deep_layers
+    DEEP_LAYERS = [int(i) for i in FLAGS.deep_layers]
     CONCAT_LAYERS = []
     STACKED = FLAGS.stacked
     LMBD = FLAGS.reg
@@ -60,7 +61,11 @@ def main(argv):
 
     model = DCN(categorical_features=category_list, num_numerical_features=NUM_NUMERICAL_FEATURES,
                 dcn_layer_len=CROSS_LAYERS, layer_sizes=DEEP_LAYERS, concat_layer_sizes=CONCAT_LAYERS, output_dim=OUTPUT_DIM,
-                stacked=STACKED).to(device=device)
+                cross_net_V2=FLAGS.v2, stacked=STACKED).to(device=device)
+    print("Printing trainable parameters")
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name, len(param.data))
 
     #loss_fn = nn.MSELoss(reduction='sum')
     loss_fn = nn.NLLLoss()
@@ -147,7 +152,7 @@ def main(argv):
     if not os.path.exists("avazu_results"):
         os.mkdir("avazu_results")
 
-    path = f'avazu_results/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR{LMBD}lambda{STACKED}stacked'
+    path = f'avazu_results/curve_plot_{CROSS_LAYERS}crossLayers__{str(DEEP_LAYERS)}_deepLayers{str(CONCAT_LAYERS)}concatLayers_{NUM_EPOCHS}epochs{LR}LR{LMBD}lambda{STACKED}stacked{FLAGS.v2}isv2'
 
     if not os.path.exists(path=path):
         os.mkdir(path=path)
@@ -156,7 +161,7 @@ def main(argv):
     fig2.savefig(f'{path}/accuracy_plot.png')
 
     with open(f"{path}/results.csv", "w") as f:
-        f.write("EPOCHS,Training Loss,Validation Loss,Training Accuracy, Validation Accuracy\n")
+        f.write("EPOCHS,Training Loss,Validation Loss,Training Accuracy,Validation Accuracy\n")
         for i in range(len(epoch_list)):
             f.write(f"{epoch_list[i]},{train_loss_list[i]},{val_loss_list[i]}, {training_accuracy_list[i]},{validation_accuracy_list[i]}\n")
 
